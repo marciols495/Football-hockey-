@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-50 antialiased selection:bg-cyan-500/30;
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  }
+}

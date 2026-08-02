@@ -1,0 +1,6 @@
+{
+  "name": "Neon Air Hockey",
+  "description": "A high-octane neon air hockey game with local and online multiplayer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
