@@ -41,10 +41,14 @@ export function resolveCollision(c1: Circle, c2: Circle, config: GameConfig) {
     if (p > 0) {
        c2.vel.x += p * c1.mass * nx;
        c2.vel.y += p * c1.mass * ny;
-    } else {
-       // If they overlap but aren't moving towards each other fast enough, give a small push based on overlap to prevent getting stuck
-       c2.vel.x += nx * overlap * 10;
-       c2.vel.y += ny * overlap * 10;
+    }
+    
+    // Anti-stuck logic: If heavily overlapped or completely dead inside the paddle
+    const currentSpeed = Math.sqrt(c2.vel.x ** 2 + c2.vel.y ** 2);
+    if (overlap > 8 || (overlap > 2 && currentSpeed < 100)) {
+       // The user requested to shoot the ball sideways when stuck
+       c2.vel.x = (c2.pos.x > config.width / 2 ? -800 : 800);
+       c2.vel.y = (c2.pos.y > config.height / 2 ? -300 : 300);
     }
   }
 }
@@ -59,8 +63,9 @@ export function updatePhysics(state: GameState, config: GameConfig, dt: number) 
   puck.pos.y += puck.vel.y * dt;
 
   // Apply friction
-  puck.vel.x *= config.friction;
-  puck.vel.y *= config.friction;
+  const frictionFactor = Math.pow(config.friction, dt * 60);
+  puck.vel.x *= frictionFactor;
+  puck.vel.y *= frictionFactor;
 
   // Wall collisions for puck
   if (puck.pos.x - puck.radius < 0) {

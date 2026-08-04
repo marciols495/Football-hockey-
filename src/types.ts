@@ -38,7 +38,7 @@ export const GAME_CONFIG: GameConfig = {
   width: 400,
   height: 600,
   goalWidth: 140,
-  puckRadius: 18,
+  puckRadius: 28,
   paddleRadius: 35,
   friction: 0.99,
   maxScore: 7,

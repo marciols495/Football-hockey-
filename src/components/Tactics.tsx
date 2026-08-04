@@ -1,39 +1,19 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useTeamStore, Player, Position } from '../lib/store';
+import { useTeamStore, Player, Position, Group } from '../lib/store';
 import { ArrowLeft, Plus, X, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const INITIALS_COLORS = ['bg-blue-500', 'bg-emerald-500', 'bg-pink-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500'];
 
 const getSpecificPosition = (pos: Position, x: number, y: number) => {
-  if (pos === 'GOL') return 'GR';
-  if (pos === 'DEF') {
-    if (x < 0.35) return 'DE';
-    if (x > 0.65) return 'DD';
-    return 'DC';
-  }
-  if (pos === 'LAT') {
-    if (x < 0.5) return 'DE';
-    return 'DD';
-  }
-  if (pos === 'MED') {
-    if (x < 0.35) return 'ME';
-    if (x > 0.65) return 'MD';
-    return 'MC';
-  }
-  if (pos === 'ATA') {
-    if (x < 0.35) return 'EE';
-    if (x > 0.65) return 'ED';
-    return 'PL';
-  }
   return pos;
 };
 
 const getCardStyle = (rating: number) => {
-  if (rating >= 85) return 'bg-gradient-to-b from-[#FFA700] to-[#FF8C00] text-[#1A1A1A] border-[#FFB84C]';
-  if (rating >= 79) return 'bg-gradient-to-b from-[#5C85FF] to-[#3A52FF] text-white border-[#6A90FF]';
-  return 'bg-gradient-to-b from-[#C4C4C4] to-[#A0A0A0] text-[#1A1A1A] border-[#D0D0D0]';
+  if (rating >= 90) return 'bg-gradient-to-b from-[#E0E0E0] to-[#A0A0A0] text-[#1A1A1A] border-[#F0F0F0]';
+  if (rating >= 80) return 'bg-gradient-to-b from-[#FFA700] to-[#FF8C00] text-[#1A1A1A] border-[#FFB84C]';
+  return 'bg-gradient-to-b from-[#5C85FF] to-[#3A52FF] text-white border-[#6A90FF]';
 };
 
 const getInitialsColor = (name: string) => {
@@ -46,10 +26,23 @@ const getInitialsColor = (name: string) => {
 };
 
 export function Tactics({ onBack }: { onBack: () => void }) {
-  const { players, activePlayerId, setActivePlayer, updatePlayer, addPlayer, removePlayer, resetPlayerGoals } = useTeamStore();
+  const { 
+    groups, 
+    activeGroupId, 
+    players, 
+    activePlayerId, 
+    addGroup, 
+    removeGroup, 
+    setActiveGroup, 
+    setActivePlayer, 
+    updatePlayer, 
+    addPlayer, 
+    removePlayer, 
+    resetPlayerPoints 
+  } = useTeamStore();
+  
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [showManageTactics, setShowManageTactics] = useState(false);
 
   const pitchRef = useRef<HTMLDivElement>(null);
 
@@ -77,62 +70,36 @@ export function Tactics({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const pitchPlayers = players.filter(p => p.isOnPitch !== false);
-  const benchPlayers = players.filter(p => p.isOnPitch === false);
+  const groupPlayers = players.filter(p => p.groupId === activeGroupId);
+  const pitchPlayers = groupPlayers.filter(p => p.isOnPitch !== false);
+  const benchPlayers = groupPlayers.filter(p => p.isOnPitch === false);
 
-  const applyFormation = (name: string) => {
-     const formationPlayers = [...players].sort((a,b) => {
-        if(a.position === 'GOL') return -1;
-        if(b.position === 'GOL') return 1;
-        return 0;
-     }).slice(0, 11);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
 
-     players.forEach(p => updatePlayer(p.id, { isOnPitch: false }));
+  const activeGroup = groups.find(g => g.id === activeGroupId) || groups[0];
 
-     let positions = [];
-     if (name === '4-3-3') {
-        positions = [
-           {x: 0.5, y: 0.9}, 
-           {x: 0.2, y: 0.75}, {x: 0.4, y: 0.75}, {x: 0.6, y: 0.75}, {x: 0.8, y: 0.75},
-           {x: 0.25, y: 0.5}, {x: 0.5, y: 0.5}, {x: 0.75, y: 0.5}, 
-           {x: 0.2, y: 0.25}, {x: 0.5, y: 0.15}, {x: 0.8, y: 0.25}  
-        ];
-     } else if (name === '3-4-3') {
-        positions = [
-           {x: 0.5, y: 0.9}, 
-           {x: 0.3, y: 0.75}, {x: 0.5, y: 0.75}, {x: 0.7, y: 0.75}, 
-           {x: 0.15, y: 0.5}, {x: 0.4, y: 0.5}, {x: 0.6, y: 0.5}, {x: 0.85, y: 0.5}, 
-           {x: 0.2, y: 0.25}, {x: 0.5, y: 0.15}, {x: 0.8, y: 0.25}  
-        ];
-     } else if (name === '4-2-3-1') {
-        positions = [
-           {x: 0.5, y: 0.9}, 
-           {x: 0.2, y: 0.8}, {x: 0.4, y: 0.8}, {x: 0.6, y: 0.8}, {x: 0.8, y: 0.8}, 
-           {x: 0.35, y: 0.6}, {x: 0.65, y: 0.6}, 
-           {x: 0.2, y: 0.4}, {x: 0.5, y: 0.4}, {x: 0.8, y: 0.4}, 
-           {x: 0.5, y: 0.15} 
-        ];
-     } else if (name === '4-4-2') {
-        positions = [
-           {x: 0.5, y: 0.9}, 
-           {x: 0.2, y: 0.75}, {x: 0.4, y: 0.75}, {x: 0.6, y: 0.75}, {x: 0.8, y: 0.75}, 
-           {x: 0.2, y: 0.5}, {x: 0.4, y: 0.5}, {x: 0.6, y: 0.5}, {x: 0.8, y: 0.5}, 
-           {x: 0.35, y: 0.2}, {x: 0.65, y: 0.2} 
-        ];
-     }
+  const handleAddGroup = () => {
+    if (newGroupName.trim()) {
+      addGroup(newGroupName.trim());
+      setNewGroupName('');
+      setIsCreatingGroup(false);
+    }
+  };
 
-     formationPlayers.forEach((p, idx) => {
-        if (positions[idx]) {
-           updatePlayer(p.id, { isOnPitch: true, pitchX: positions[idx].x, pitchY: positions[idx].y });
-        }
-     });
+  const handleRemoveGroup = () => {
+    if (window.confirm(`Tem certeza que deseja apagar o grupo "${activeGroup.name}" e todos os seus animais?`)) {
+      removeGroup(activeGroupId);
+    }
   };
 
   const renderPlayerCard = (player: Player, inBench = false) => {
     const isSelected = activePlayerId === player.id;
     const cardStyle = getCardStyle(player.rating);
     const initialsColor = getInitialsColor(player.name);
-    const specificPos = getSpecificPosition(player.position, player.pitchX ?? 0.5, player.pitchY ?? 0.5);
+    
+    // Convert full position name to acronym for the card view to save space
+    let shortPos = player.position.substring(0, 3).toUpperCase();
 
     return (
       <motion.div
@@ -156,13 +123,13 @@ export function Tactics({ onBack }: { onBack: () => void }) {
           className={cn(
           "w-14 h-20 sm:w-16 sm:h-24 rounded-2xl flex flex-col items-center p-1 sm:p-1.5 shadow-xl relative overflow-hidden transition-all duration-300 border",
           cardStyle,
-          isSelected && 'ring-4 ring-white ring-offset-2 ring-offset-[#2F8F32]'
+          isSelected && 'ring-4 ring-cyan-400 ring-offset-2 ring-offset-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.6)]'
         )}>
           {/* Top row */}
           <div className="w-full flex justify-between items-start px-0.5">
             <div className="flex flex-col items-start leading-none">
               <span className="text-xs sm:text-base font-black tracking-tighter leading-none">{player.rating}</span>
-              <span className="text-[7px] sm:text-[9px] font-bold opacity-80 uppercase leading-none mt-0.5">{player.position}</span>
+              <span className="text-[7px] sm:text-[9px] font-bold opacity-80 uppercase leading-none mt-0.5">{shortPos}</span>
             </div>
             <Zap size={10} className="w-3 h-3 sm:w-4 sm:h-4 opacity-60 text-yellow-300 fill-yellow-300" />
           </div>
@@ -183,7 +150,7 @@ export function Tactics({ onBack }: { onBack: () => void }) {
         
         {/* Specific Position Pill */}
         <div className="bg-slate-950 text-white px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black border border-slate-700 shadow-lg tracking-widest min-w-[32px] text-center">
-          {inBench ? player.position : specificPos}
+          {player.position}
         </div>
       </motion.div>
     );
@@ -192,74 +159,56 @@ export function Tactics({ onBack }: { onBack: () => void }) {
   return (
     <div className="absolute inset-0 z-10 flex flex-col bg-[#1A1A1A] text-white p-4 overflow-hidden h-full">
       {/* Header Bar */}
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <h1 className="text-3xl font-bold tracking-tight">Tática eFootball</h1>
-        <div className="flex items-center gap-3">
-          <button 
-             onClick={() => players.forEach(p => updatePlayer(p.id, { isOnPitch: false }))}
-             className="px-5 py-2 bg-[#2A2A2A] hover:bg-[#333] text-white rounded-full font-bold text-sm transition-colors border border-[#333]"
-          >
-            Limpar
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-2">
+          <button onClick={onBack} className="p-2 sm:p-2.5 rounded-full bg-[#2A2A2A] hover:bg-[#333] transition-colors shrink-0">
+            <ArrowLeft size={20} className="sm:hidden" />
+            <ArrowLeft size={24} className="hidden sm:block" />
           </button>
-          <button className="px-5 py-2 bg-[#8CFF5A] hover:bg-[#7AE04E] text-[#1A1A1A] rounded-full font-bold text-sm transition-colors">
-            Guardar Equipa
+          
+          <div className="flex flex-wrap items-center gap-2">
+            <select 
+              value={activeGroupId} 
+              onChange={(e) => setActiveGroup(e.target.value)}
+              className="bg-[#2A2A2A] text-white border border-[#333] rounded-lg px-3 py-1.5 font-bold text-sm sm:text-base focus:outline-none focus:border-[#8CFF5A]"
+            >
+              {groups.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+            <button 
+              onClick={() => setIsCreatingGroup(true)}
+              className="px-3 py-1.5 rounded-lg bg-[#2A2A2A] hover:bg-[#333] flex items-center justify-center border border-[#333] text-white transition-colors text-sm font-bold shadow-sm"
+              title="Novo Grupo"
+            >
+              <Plus size={16} className="mr-1" /> Criar Grupo
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 self-end sm:self-auto">
+          <button 
+             onClick={() => groupPlayers.forEach(p => updatePlayer(p.id, { isOnPitch: false }))}
+             className="px-3 py-1.5 sm:px-5 sm:py-2 bg-[#2A2A2A] hover:bg-[#333] text-white rounded-full font-bold text-xs sm:text-sm transition-colors border border-[#333]"
+          >
+            Limpar Arena
           </button>
         </div>
       </div>
 
-      {/* Formations Bar */}
-      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-none">
-        {['4-3-3', '3-4-3', '4-2-3-1', '4-4-2'].map((tactic, i) => (
-          <button 
-            key={tactic}
-            onClick={() => applyFormation(tactic)}
-            className={cn(
-              "px-6 py-2 rounded-full font-bold text-sm transition-colors whitespace-nowrap",
-              i === 0 ? "bg-white text-[#2F8F32]" : "bg-[#2A2A2A] hover:bg-[#333] text-[#999]"
-            )}
-          >
-            {tactic}
-          </button>
-        ))}
-      </div>
-      <div className="mb-4">
-        <button 
-          onClick={() => setShowManageTactics(true)}
-          className="px-5 py-2 border border-[#444] text-[#CCC] hover:bg-[#2A2A2A] rounded-full font-bold text-sm transition-colors whitespace-nowrap"
-        >
-          Gerir Táticas
-        </button>
-      </div>
-
-      {/* Main Pitch Area */}
+      {/* Main Arena Area */}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative w-full pt-2 pb-2">
         <div 
           ref={pitchRef}
-          className="w-full h-full max-w-4xl relative rounded-xl border-[6px] border-[#E5E5E5] bg-[#2F8F32] overflow-hidden shadow-2xl shrink-0" 
+          className="w-full h-full max-w-4xl relative rounded-xl border-[6px] border-cyan-500 bg-slate-950 overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.4)] shrink-0" 
+          style={{
+            backgroundImage: 'radial-gradient(circle at center, rgba(6,182,212,0.15) 0%, rgba(2,6,23,1) 100%), repeating-linear-gradient(45deg, rgba(6,182,212,0.05) 0px, rgba(6,182,212,0.05) 20px, transparent 20px, transparent 40px)'
+          }}
         >
-          {/* Pitch Lines */}
-          <div className="absolute inset-0 pointer-events-none opacity-80">
-              {/* Outer boundary offset */}
-              <div className="absolute inset-2 border-[2px] border-white pointer-events-none"></div>
+          {/* Inner Arena decoration */}
+          <div className="absolute inset-4 border-[2px] border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.3)_inset] rounded-full pointer-events-none"></div>
+          <div className="absolute top-1/2 left-1/2 w-1/3 aspect-square border-[2px] border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.4)] rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
 
-              {/* Center line */}
-              <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-white transform -translate-y-1/2"></div>
-              {/* Center circle */}
-              <div className="absolute top-1/2 left-1/2 w-1/4 aspect-square border-[2px] border-white rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
-              <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-white rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
-              
-              {/* Top Penalty area */}
-              <div className="absolute top-2 left-1/2 w-1/2 h-[20%] border-[2px] border-white border-t-0 transform -translate-x-1/2"></div>
-              <div className="absolute top-2 left-1/2 w-[20%] h-[10%] border-[2px] border-white border-t-0 transform -translate-x-1/2"></div>
-              <div className="absolute top-[22%] left-1/2 w-[15%] h-[10%] border-[2px] border-white border-t-0 rounded-b-full transform -translate-x-1/2"></div>
-
-              {/* Bottom Penalty area */}
-              <div className="absolute bottom-2 left-1/2 w-1/2 h-[20%] border-[2px] border-white border-b-0 transform -translate-x-1/2"></div>
-              <div className="absolute bottom-2 left-1/2 w-[20%] h-[10%] border-[2px] border-white border-b-0 transform -translate-x-1/2"></div>
-              <div className="absolute bottom-[22%] left-1/2 w-[15%] h-[10%] border-[2px] border-white border-b-0 rounded-t-full transform -translate-x-1/2"></div>
-          </div>
-
-          {/* Players on Pitch */}
+          {/* Players in Arena */}
           {pitchPlayers.map((player) => renderPlayerCard(player, false))}
         </div>
       </div>
@@ -267,8 +216,8 @@ export function Tactics({ onBack }: { onBack: () => void }) {
       {/* Bench Area */}
       <div className="mt-4 pt-4 border-t border-[#333] shrink-0">
          <div className="flex items-center justify-between text-[#888] text-xs font-bold uppercase tracking-widest mb-4 px-2">
-            <span>Banco • {benchPlayers.length}</span>
-            <span>arrasta para o campo &rarr;</span>
+            <span>Reserva / Incubadora • {benchPlayers.length}</span>
+            <span>arrasta para a arena &rarr;</span>
          </div>
          <div className="flex gap-4 overflow-x-auto pb-4 px-2 min-h-[140px] items-start">
             {benchPlayers.map(player => renderPlayerCard(player, true))}
@@ -288,6 +237,8 @@ export function Tactics({ onBack }: { onBack: () => void }) {
           <PlayerEditModal
             player={editingPlayer}
             isCreating={isCreating}
+            groups={groups}
+            activeGroupId={activeGroupId}
             onClose={() => { setEditingPlayer(null); setIsCreating(false); }}
             onSave={(updatedPlayer) => {
               if (isCreating) {
@@ -309,125 +260,94 @@ export function Tactics({ onBack }: { onBack: () => void }) {
             onSelect={(id) => {
               setActivePlayer(id);
             }}
-            onResetGoals={resetPlayerGoals}
+            onResetPoints={resetPlayerPoints}
             isActive={activePlayerId === editingPlayer?.id}
           />
         )}
       </AnimatePresence>
 
       <AnimatePresence>
-        {showManageTactics && (
-          <ManageTacticsModal onClose={() => setShowManageTactics(false)} />
+        {isCreatingGroup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[#1A1A1A] border border-[#333] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 border-b border-[#333] flex items-center justify-between">
+                <h3 className="text-2xl font-black">Novo Grupo</h3>
+                <button onClick={() => setIsCreatingGroup(false)} className="p-2 bg-[#2A2A2A] hover:bg-[#333] rounded-full transition-colors text-[#999] hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[#666] uppercase tracking-widest">Nome do Grupo</label>
+                  <input
+                    type="text"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    className="w-full bg-[#0D0D0D] border border-[#333] rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:border-[#8CFF5A] transition-colors"
+                    placeholder="Ex: Predadores"
+                    autoFocus
+                  />
+                </div>
+                <div className="pt-4 grid grid-cols-2 gap-4">
+                  <button 
+                    onClick={() => setIsCreatingGroup(false)}
+                    className="py-3 rounded-xl font-bold bg-[#2A2A2A] text-[#CCC] hover:bg-[#333] transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleAddGroup}
+                    className="py-3 rounded-xl font-black bg-[#8CFF5A] text-[#1A1A1A] hover:bg-[#7AE04E] transition-colors"
+                  >
+                    Criar Grupo
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 }
 
-function ManageTacticsModal({ onClose }: { onClose: () => void }) {
-   return (
-      <motion.div
-         initial={{ opacity: 0 }}
-         animate={{ opacity: 1 }}
-         exit={{ opacity: 0 }}
-         className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center p-0 sm:p-4"
-      >
-         <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            className="w-full sm:max-w-md bg-[#111] rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh]"
-         >
-            <div className="w-12 h-1 bg-[#333] rounded-full mx-auto my-3 sm:hidden" />
-            <div className="flex items-center justify-between p-6 pb-4">
-               <h2 className="text-2xl font-bold text-white">Gerir Táticas</h2>
-               <button onClick={onClose} className="p-2 border border-[#333] rounded-full text-[#999] hover:text-white transition-colors">
-                  <X size={20} />
-               </button>
-            </div>
-            
-            <div className="px-6 pb-6 overflow-y-auto">
-               <div className="flex items-center gap-3 mb-6 bg-[#222] p-1.5 rounded-xl border border-[#333]">
-                  <input 
-                     type="text" 
-                     placeholder="Nome da nova tática" 
-                     className="flex-1 bg-transparent border-none text-[#999] font-bold px-4 py-2 focus:outline-none"
-                  />
-                  <button className="px-4 py-2 bg-[#444] rounded-lg font-bold text-sm text-[#CCC]">
-                     Nova Tática
-                  </button>
-               </div>
-
-               <div className="space-y-4">
-                  <div className="bg-[#222] p-4 rounded-xl border border-[#333]">
-                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                           <span className="font-bold text-lg text-white">4-3-3</span>
-                           <span className="px-2 py-0.5 text-[10px] font-bold bg-[#333] text-[#999] rounded">BASE</span>
-                           <span className="px-2 py-0.5 text-[10px] font-bold bg-[#8CFF5A] text-[#1A1A1A] rounded">ATIVA</span>
-                        </div>
-                        <span className="text-xs text-[#666] font-bold">11 pos</span>
-                     </div>
-                     <div className="flex gap-2">
-                        <button className="flex-1 py-2 bg-[#333] rounded-lg text-xs font-bold text-white transition-colors">Renomear</button>
-                        <button className="flex-1 py-2 bg-[#333] rounded-lg text-xs font-bold text-white transition-colors">Duplicar</button>
-                        <button className="flex-1 py-2 bg-[#333]/50 text-red-500/30 rounded-lg text-xs font-bold cursor-not-allowed">Apagar</button>
-                        <button className="flex-[1.5] py-2 border border-[#2F8F32] text-[#8CFF5A] hover:bg-[#2F8F32]/20 rounded-lg text-xs font-bold transition-colors">Editar Posições</button>
-                     </div>
-                  </div>
-
-                  <div className="bg-[#222] p-4 rounded-xl border border-[#333]">
-                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                           <span className="font-bold text-lg text-white">3-4-3</span>
-                           <span className="px-2 py-0.5 text-[10px] font-bold bg-[#333] text-[#999] rounded">BASE</span>
-                        </div>
-                        <span className="text-xs text-[#666] font-bold">11 pos</span>
-                     </div>
-                     <div className="flex gap-2">
-                        <button className="flex-1 py-2 bg-[#333] rounded-lg text-xs font-bold text-white transition-colors">Renomear</button>
-                        <button className="flex-1 py-2 bg-[#333] rounded-lg text-xs font-bold text-white transition-colors">Duplicar</button>
-                        <button className="flex-1 py-2 bg-[#3A1111] text-red-500 border border-red-900/50 rounded-lg text-xs font-bold transition-colors">Apagar</button>
-                        <button className="flex-[1.5] py-2 border border-[#2F8F32] text-[#8CFF5A] hover:bg-[#2F8F32]/20 rounded-lg text-xs font-bold transition-colors">Editar Posições</button>
-                     </div>
-                  </div>
-               </div>
-            </div>
-
-            <div className="p-6 pt-2">
-               <button onClick={onClose} className="w-full py-4 bg-[#2A2A2A] text-white hover:bg-[#333] rounded-xl font-bold transition-colors">
-                  Fechar
-               </button>
-            </div>
-         </motion.div>
-      </motion.div>
-   )
-}
-
 function PlayerEditModal({ 
   player, 
-  isCreating, 
+  isCreating,
+  groups,
+  activeGroupId,
   onClose, 
   onSave, 
   onDelete,
   onSelect,
-  onResetGoals,
+  onResetPoints,
   isActive 
 }: { 
   player: Player | null, 
   isCreating: boolean,
+  groups: Group[],
+  activeGroupId: string,
   onClose: () => void, 
   onSave: (player: Partial<Player>) => void,
   onDelete: (id: string) => void,
   onSelect: (id: string) => void,
-  onResetGoals: (id: string) => void,
+  onResetPoints: (id: string) => void,
   isActive: boolean
 }) {
   const [name, setName] = useState(player?.name || '');
-  const [position, setPosition] = useState<Position>(player?.position || 'MED');
+  const [position, setPosition] = useState<Position>(player?.position || 'DINOSSAURO');
   const [rating, setRating] = useState(player?.rating || 80);
-
-  const positions: Position[] = ['GOL', 'DEF', 'LAT', 'MED', 'ATA'];
+  const [groupId, setGroupId] = useState(player?.groupId || activeGroupId);
 
   return (
     <motion.div
@@ -443,7 +363,7 @@ function PlayerEditModal({
         className="bg-[#1A1A1A] border border-[#333] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
       >
         <div className="p-6 border-b border-[#333] flex items-center justify-between">
-          <h3 className="text-2xl font-black">{isCreating ? 'Novo Jogador' : 'Editar Jogador'}</h3>
+          <h3 className="text-2xl font-black">{isCreating ? 'Novo Animal' : 'Editar Animal'}</h3>
           <button onClick={onClose} className="p-2 bg-[#2A2A2A] hover:bg-[#333] rounded-full transition-colors text-[#999] hover:text-white">
             <X size={20} />
           </button>
@@ -457,38 +377,42 @@ function PlayerEditModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full bg-[#0D0D0D] border border-[#333] rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:border-[#8CFF5A] transition-colors"
-              placeholder="Nome do jogador"
+              placeholder="Nome do animal"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-[#666] uppercase tracking-widest">Posição</label>
-            <div className="grid grid-cols-5 gap-1 sm:gap-2">
-              {positions.map((pos) => (
-                <button
-                  key={pos}
-                  onClick={() => setPosition(pos)}
-                  className={cn(
-                    "py-2 rounded-lg font-bold text-[10px] sm:text-sm transition-all border",
-                    position === pos 
-                      ? "bg-white text-[#1A1A1A] border-white" 
-                      : "bg-[#0D0D0D] border-[#333] text-[#999] hover:bg-[#2A2A2A]"
-                  )}
-                >
-                  {pos}
-                </button>
+            <label className="text-xs font-bold text-[#666] uppercase tracking-widest">Espécie / Família</label>
+            <input
+              type="text"
+              value={position}
+              onChange={(e) => setPosition(e.target.value)}
+              className="w-full bg-[#0D0D0D] border border-[#333] rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:border-[#8CFF5A] transition-colors"
+              placeholder="Ex: Canino, Felino, Dinossauro"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[#666] uppercase tracking-widest">Grupo</label>
+            <select
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+              className="w-full bg-[#0D0D0D] border border-[#333] rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:border-[#8CFF5A] transition-colors"
+            >
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
               ))}
-            </div>
+            </select>
           </div>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-[#666] uppercase tracking-widest">Rating</label>
+              <label className="text-xs font-bold text-[#666] uppercase tracking-widest">Rating (Força)</label>
               <span className="text-xl font-black text-amber-500">{rating}</span>
             </div>
             <input
               type="range"
-              min="60"
+              min="50"
               max="99"
               value={rating}
               onChange={(e) => setRating(parseInt(e.target.value))}
@@ -498,13 +422,13 @@ function PlayerEditModal({
 
           {!isCreating && player && (
             <div className="flex items-center justify-between p-4 bg-[#0D0D0D] rounded-xl border border-[#333]">
-              <span className="text-sm font-bold text-[#999]">Golos na Carreira</span>
+              <span className="text-sm font-bold text-[#999]">Pontos / Vitórias</span>
               <div className="flex items-center gap-4">
-                <span className="text-xl font-black text-cyan-400">{player.goals}</span>
+                <span className="text-xl font-black text-cyan-400">{player.points}</span>
                 <button 
                   onClick={() => {
-                    if (window.confirm('Tem certeza que deseja zerar os golos deste jogador?')) {
-                      onResetGoals(player.id);
+                    if (window.confirm('Tem certeza que deseja zerar os pontos deste animal?')) {
+                      onResetPoints(player.id);
                     }
                   }}
                   className="px-2 py-1 rounded bg-[#2A2A2A] hover:bg-[#333] text-xs font-bold text-[#999] hover:text-white transition-colors"
@@ -523,7 +447,7 @@ function PlayerEditModal({
               Cancelar
             </button>
             <button 
-              onClick={() => onSave({ name, position, rating })}
+              onClick={() => onSave({ name, position, rating, groupId })}
               className="py-3 rounded-xl font-black bg-[#8CFF5A] text-[#1A1A1A] hover:bg-[#7AE04E] transition-colors"
             >
               Guardar
@@ -542,14 +466,14 @@ function PlayerEditModal({
                    isActive ? "bg-cyan-500 text-slate-950 pointer-events-none" : "bg-[#2A2A2A] hover:bg-[#333] text-white"
                  )}
                >
-                 {isActive ? 'Selecionado para Jogar' : 'Selecionar para Jogar'}
+                 {isActive ? 'Selecionado' : 'Selecionar Animal'}
                </button>
 
               <button 
                 onClick={() => onDelete(player.id)}
                 className="w-full py-3 rounded-xl font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 transition-colors"
               >
-                Remover Jogador
+                Remover Animal
               </button>
             </div>
           )}
@@ -558,3 +482,4 @@ function PlayerEditModal({
     </motion.div>
   );
 }
+

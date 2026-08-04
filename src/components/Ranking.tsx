@@ -5,9 +5,10 @@ import { ArrowLeft, Trophy, Medal, RotateCcw } from 'lucide-react';
 import { NeonButton } from './NeonUI';
 
 export function Ranking({ onBack }: { onBack: () => void }) {
-  const { players, resetAllGoals } = useTeamStore();
+  const { players, activeGroupId, resetAllPoints } = useTeamStore();
 
-  const sortedPlayers = [...players].sort((a, b) => b.goals - a.goals).slice(0, 10);
+  const groupPlayers = players.filter(p => p.groupId === activeGroupId);
+  const sortedPlayers = [...groupPlayers].sort((a, b) => b.points - a.points).slice(0, 10);
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col bg-slate-950 text-white p-4 sm:p-8 overflow-y-auto">
@@ -21,20 +22,20 @@ export function Ranking({ onBack }: { onBack: () => void }) {
           </button>
           <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight flex items-center gap-3">
             <Trophy className="text-amber-500 w-8 h-8 sm:w-10 sm:h-10" />
-            Top 10 Marcadores
+            Top 10 Predadores
           </h1>
         </div>
         
         <button 
           onClick={() => {
-            if (window.confirm('Tem certeza que deseja zerar os golos de todos os jogadores?')) {
-              resetAllGoals();
+            if (window.confirm('Tem certeza que deseja zerar os pontos de todos os animais?')) {
+              resetAllPoints();
             }
           }}
           className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 rounded-xl font-bold transition-colors text-sm"
         >
           <RotateCcw size={16} />
-          <span className="hidden sm:inline">Zerar Golos</span>
+          <span className="hidden sm:inline">Zerar Pontos</span>
         </button>
       </div>
 
@@ -42,9 +43,9 @@ export function Ranking({ onBack }: { onBack: () => void }) {
         <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
           <div className="grid grid-cols-12 gap-4 p-4 border-b border-slate-800 bg-slate-950/50 font-bold text-slate-400 text-sm uppercase tracking-widest">
             <div className="col-span-2 sm:col-span-1 text-center">#</div>
-            <div className="col-span-6 sm:col-span-7">Jogador</div>
+            <div className="col-span-6 sm:col-span-7">Animal</div>
             <div className="col-span-2 hidden sm:block text-center">Rating</div>
-            <div className="col-span-4 sm:col-span-2 text-right pe-4">Golos</div>
+            <div className="col-span-4 sm:col-span-2 text-right pe-4">Pontos</div>
           </div>
           
           <div className="flex flex-col">
@@ -77,15 +78,15 @@ export function Ranking({ onBack }: { onBack: () => void }) {
                 </div>
                 
                 <div className="col-span-4 sm:col-span-2 text-right pe-4 flex items-center justify-end gap-2">
-                  <span className="font-black text-2xl text-cyan-400">{player.goals}</span>
-                  <span className="text-xs text-slate-500 font-bold uppercase hidden sm:block">Golos</span>
+                  <span className="font-black text-2xl text-cyan-400">{player.points}</span>
+                  <span className="text-xs text-slate-500 font-bold uppercase hidden sm:block">Pts</span>
                 </div>
               </motion.div>
             ))}
             
             {sortedPlayers.length === 0 && (
               <div className="p-12 text-center text-slate-500 font-bold">
-                Nenhum jogador encontrado.
+                Nenhum animal encontrado.
               </div>
             )}
           </div>
